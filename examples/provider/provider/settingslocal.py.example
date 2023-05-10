@@ -36,6 +36,10 @@ LOGIN_REDIRECT_URL = "/oidc/op/landing"
 LOGOUT_REDIRECT_URL = "/oidc/op/landing"
 LOGIN_URL = "/oidc/op/landing"
 
+# https://docs.djangoproject.com/en/4.1/ref/settings/#secure-proxy-ssl-header
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = ["*"]
+
 ALLOWED_HOSTS = ['*']
 AUTH_USER_MODEL = 'spid_cie_oidc_accounts.User'
 

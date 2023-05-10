@@ -28,6 +28,7 @@ OIDCFED_IDENTITY_PROVIDERS = {
   },
   "cie": {
     "http://127.0.0.1:8002/oidc/op/" : OIDCFED_DEFAULT_TRUST_ANCHOR,
+#   <OTHER_OP>: OIDCFED_DEFAULT_TRUST_ANCHOR,
   }
 }
 
@@ -39,6 +40,10 @@ HTTPC_PARAMS = {
 LOGIN_REDIRECT_URL = "/oidc/rp/echo_attributes"
 LOGOUT_REDIRECT_URL = "/oidc/rp/landing"
 LOGIN_URL = "/oidc/rp/landing"
+
+# https://docs.djangoproject.com/en/4.1/ref/settings/#secure-proxy-ssl-header
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = ["*"]
 
 ALLOWED_HOSTS = ['*']
 AUTH_USER_MODEL = 'spid_cie_oidc_accounts.User'
