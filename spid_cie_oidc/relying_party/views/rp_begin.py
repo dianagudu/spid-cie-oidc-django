@@ -14,14 +14,14 @@ from spid_cie_oidc.entity.exceptions import InvalidTrustchain
 from spid_cie_oidc.entity.jwtse import create_jws
 from spid_cie_oidc.entity.utils import get_jwks
 from spid_cie_oidc.entity.models import FederationEntityConfiguration
-from spid_cie_oidc.relying_party.settings import OIDCFED_ACR_PROFILES, RP_PROVIDER_PROFILES, RP_DEFAULT_PROVIDER_PROFILES
+from spid_cie_oidc.relying_party.settings import (
+    OIDCFED_ACR_PROFILES,
+    RP_PROVIDER_PROFILES,
+    RP_DEFAULT_PROVIDER_PROFILES,
+)
 
 from ..models import OidcAuthentication
-from ..settings import (
-    RP_PKCE_CONF,
-    RP_REQUEST_CLAIM_BY_PROFILE,
-    RP_REQUEST_EXP
-)
+from ..settings import RP_PKCE_CONF, RP_REQUEST_CLAIM_BY_PROFILE, RP_REQUEST_EXP
 from ..utils import (
     http_dict_to_redirect_uri_path,
     random_string,
@@ -36,21 +36,22 @@ schema_profile = RP_PROVIDER_PROFILES[RP_DEFAULT_PROVIDER_PROFILES]
 
 @schema(
     summary="OIDC Relying Party Authorization begin",
-    methods=['GET'],
-    get_response_schema= {
+    methods=["GET"],
+    get_response_schema={
         "302": schema_profile["authorization_request_doc"],
     },
-    external_docs = {
+    external_docs={
         "alt_text": "AgID SPID OIDC Guidelines",
-        "url": "https://www.agid.gov.it/it/agenzia/stampa-e-comunicazione/notizie/2021/12/06/openid-connect-spid-adottate-linee-guida"
+        "url": "https://www.agid.gov.it/it/agenzia/stampa-e-comunicazione/notizie/2021/12/06/openid-connect-spid-adottate-linee-guida",
     },
-    tags = ['Relying Party']
+    tags=["Relying Party"],
 )
 class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
     """
-        View which processes the actual Authz request and
-        returns a Http Redirect
+    View which processes the actual Authz request and
+    returns a Http Redirect
     """
+
     error_template = "rp_error.html"
 
     def get(self, request, *args, **kwargs):
@@ -64,7 +65,7 @@ class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
                     "error": "request rejected",
                     "error_description": "Trust Chain is unavailable.",
                 }
-                return render(request, self.error_template, context, status = 404)
+                return render(request, self.error_template, context, status=404)
 
         except InvalidTrustchain as exc:
             context = {
@@ -80,7 +81,7 @@ class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
             }
             return render(request, self.error_template, context, status=403)
 
-        provider_metadata = tc.metadata.get('openid_provider', None)
+        provider_metadata = tc.metadata.get("openid_provider", None)
         if not provider_metadata:
             context = {
                 "error": "request rejected",
@@ -103,8 +104,7 @@ class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
         client_conf = entity_conf.metadata["openid_relying_party"]
         if not (
             provider_metadata.get("jwks_uri", None)
-            or
-            provider_metadata.get("jwks", None)
+            or provider_metadata.get("jwks", None)
         ):
             context = {
                 "error": "request rejected",
@@ -115,14 +115,11 @@ class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
         jwks_dict = get_jwks(provider_metadata, federation_jwks=tc.jwks)
 
         # stores the resolves jwks in the provider metadata linked to this authz request
-        provider_metadata['jwks'] = {'keys': jwks_dict}
+        provider_metadata["jwks"] = {"keys": jwks_dict}
         if not jwks_dict:
             _msg = f"Failed to get jwks from {tc.sub}"
             logger.error(_msg)
-            context = {
-                "error": "request rejected",
-                "error_description": _msg
-            }
+            context = {"error": "request rejected", "error_description": _msg}
             return render(request, self.error_template, context)
 
         authz_endpoint = provider_metadata["authorization_endpoint"]
@@ -138,20 +135,21 @@ class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
         _timestamp_now = int(timezone.localtime().timestamp())
         authz_data = dict(
             iss=client_conf["client_id"],
-            scope= request.GET.get("scope", None) or "openid",
+            scope=request.GET.get("scope", None) or "openid",
             redirect_uri=redirect_uri,
             response_type=client_conf["response_types"][0],
             nonce=random_string(32),
             state=random_string(32),
             client_id=client_conf["client_id"],
             endpoint=authz_endpoint,
-            acr_values= OIDCFED_ACR_PROFILES,
+            acr_values=OIDCFED_ACR_PROFILES,
             iat=_timestamp_now,
-            exp =_timestamp_now + RP_REQUEST_EXP,
-            jti = str(uuid.uuid4()),
-            aud=[tc.sub, authz_endpoint],
+            exp=_timestamp_now + RP_REQUEST_EXP,
+            jti=str(uuid.uuid4()),
+            aud=[tc.sub, authz_endpoint, provider_metadata["token_endpoint"]],
             claims=RP_REQUEST_CLAIM_BY_PROFILE[_profile],
         )
+        logger.debug(f"authz_data: {authz_data}")
 
         _prompt = request.GET.get("prompt", "consent login")
 
@@ -192,11 +190,12 @@ class SpidCieOidcRpBeginView(SpidCieOidcRp, View):
         uri_path = http_dict_to_redirect_uri_path(
             {
                 "client_id": authz_data["client_id"],
-                "scope" : authz_data["scope"],
+                "redirect_uri": authz_data["redirect_uri"],
+                "scope": authz_data["scope"],
                 "response_type": authz_data["response_type"],
                 "code_challenge": authz_data["code_challenge"],
                 "code_challenge_method": authz_data["code_challenge_method"],
-                "request": authz_data["request"]
+                "request": authz_data["request"],
             }
         )
         if "?" in authz_endpoint:

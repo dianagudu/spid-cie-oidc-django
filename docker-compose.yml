@@ -1,64 +1,111 @@
 version: "3"
 
 services:
-  trust-anchor.org:
-    image: ghcr.io/italia/spid-cie-oidc-django:latest
-    # build:
-      # context: .
-      # dockerfile: ./Dockerfile
+  trust-anchor:
+    image: ddgu/spid-cie-oidc-django:latest
+    hostname: trust-anchor.fed1
     ports:
       - "8000:8000"
     volumes:
+      - ./mkcertRootCA.crt:/usr/local/share/ca-certificates/mkcertRootCA.crt:ro
       - ./examples-docker/federation_authority:/django-project
     networks:
-      - oidcfed
+      - default
+      - traefik
+    environment:
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.trust-anchor-http.rule=Host("trust-anchor.spid-cie.fedservice.lh")
+      - traefik.http.routers.trust-anchor-http.entrypoints=http
+      - traefik.http.routers.trust-anchor-http.middlewares=https-redirect
+      - traefik.http.routers.trust-anchor-https.rule=Host("trust-anchor.spid-cie.fedservice.lh")
+      - traefik.http.routers.trust-anchor-https.entrypoints=https
+      - traefik.http.routers.trust-anchor-https.tls=true
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+      - traefik.http.services.trust-anchor.loadbalancer.server.port=8000
     command: |
-        bash -c "cd /django-project/ &&
-        python3 manage.py migrate &&
-        python3 manage.py loaddata dumps/example.json &&
-        python3 manage.py runserver 0.0.0.0:8000"
+      bash -c "update-ca-certificates && cd /django-project/ &&
+      python3 manage.py migrate &&
+      python3 manage.py loaddata dumps/example.json &&
+      python3 manage.py runserver 0.0.0.0:8000"
 
-  cie-provider.org:
-    image: ghcr.io/italia/spid-cie-oidc-django:latest
-    # build:
-      # context: .
-      # dockerfile: ./Dockerfile
+  cie-provider:
+    image: ddgu/spid-cie-oidc-django:latest
+    hostname: cie-provider.fed1
     expose:
       - 8002
     ports:
       - "8002:8002"
     volumes:
+      - ./mkcertRootCA.crt:/usr/local/share/ca-certificates/mkcertRootCA.crt:ro
       - ./examples-docker/provider:/django-project
     networks:
-      - oidcfed
+      - default
+      - traefik
+    environment:
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.cie-provider-http.rule=Host("cie-provider.spid-cie.fedservice.lh")
+      - traefik.http.routers.cie-provider-http.entrypoints=http
+      - traefik.http.routers.cie-provider-http.middlewares=https-redirect
+      - traefik.http.routers.cie-provider-https.rule=Host("cie-provider.spid-cie.fedservice.lh")
+      - traefik.http.routers.cie-provider-https.entrypoints=https
+      - traefik.http.routers.cie-provider-https.tls=true
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+      - traefik.http.services.cie-provider.loadbalancer.server.port=8002
     depends_on:
-      - trust-anchor.org
+      - trust-anchor
     command: |
-        bash -c "cd /django-project/ &&
-        python3 manage.py migrate &&
-        python3 manage.py loaddata dumps/example.json &&
-        python3 manage.py runserver 0.0.0.0:8002"
+      bash -c "update-ca-certificates && cd /django-project/ &&
+      python3 manage.py migrate &&
+      python3 manage.py loaddata dumps/example.json &&
+      python3 manage.py runserver 0.0.0.0:8002"
 
-  relying-party.org:
-    image: ghcr.io/italia/spid-cie-oidc-django:latest
-    # build:
-      # context: .
-      # dockerfile: ./Dockerfile
+  relying-party:
+    image: ddgu/spid-cie-oidc-django:latest
+    hostname: relying-party.fed1
     expose:
       - 8001
     ports:
       - "8001:8001"
     volumes:
+      - ./mkcertRootCA.crt:/usr/local/share/ca-certificates/mkcertRootCA.crt:ro
       - ./examples-docker/relying_party:/django-project
     networks:
-      - oidcfed
+      - default
+      - traefik
+    environment:
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.relying-party-http.rule=Host("relying-party.spid-cie.fedservice.lh")
+      - traefik.http.routers.relying-party-http.entrypoints=http
+      - traefik.http.routers.relying-party-http.middlewares=https-redirect
+      - traefik.http.routers.relying-party-https.rule=Host("relying-party.spid-cie.fedservice.lh")
+      - traefik.http.routers.relying-party-https.entrypoints=https
+      - traefik.http.routers.relying-party-https.tls=true
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+      - traefik.http.services.relying-party.loadbalancer.server.port=8001
     depends_on:
-      - trust-anchor.org
+      - trust-anchor
     command: |
-        bash -c "cd /django-project/ &&
-        python3 manage.py migrate &&
-        python3 manage.py loaddata dumps/example.json &&
-        python3 manage.py runserver 0.0.0.0:8001"
+      bash -c "update-ca-certificates && cd /django-project/ &&
+      python3 manage.py migrate &&
+      python3 manage.py loaddata dumps/example.json &&
+      python3 manage.py runserver 0.0.0.0:8001"
 
 networks:
-  oidcfed:
+  default:
+  traefik:
+    external: true
