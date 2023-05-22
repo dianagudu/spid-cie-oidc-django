@@ -388,7 +388,7 @@ $f3->route([
         $revocationRequest = new RevocationRequest($config);
         $revocationResponse = $revocationRequest->send($revocation_endpoint, $access_token);
     } catch (Exception $e) {
-        $f3->error(401, $e->getMessage());
+        // $f3->error(401, $e->getMessage());
     } finally {
         $f3->clear('SESSION.auth');
     }
