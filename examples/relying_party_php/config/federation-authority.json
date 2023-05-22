@@ -1,0 +1,5 @@
+{
+    "https://trust-anchor.spid-cie.fedservice.lh/": {
+        "organization_name": "Federation test SPID"
+    }
+}
