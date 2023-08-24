@@ -1,0 +1,192 @@
+version: "3"
+
+services:
+  trust-anchor:
+    image: ddgu/spid-cie-oidc-django:latest
+    # build:
+      # context: .
+      # dockerfile: ./Dockerfile
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.trustAncor-http.rule=Host("trust-anchor.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.trustAncor-http.entrypoints=http
+        - traefik.http.routers.trustAncor-http.middlewares=https-redirect
+        - traefik.http.routers.trustAncor-https.rule=Host("trust-anchor.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.trustAncor-https.entrypoints=https
+        - traefik.http.routers.trustAncor-https.tls=true
+        - traefik.http.routers.trustAncor-https.tls.certresolver=le
+        - traefik.http.routers.trustAncor-https.middlewares=csrf
+        - traefik.http.middlewares.csrf.headers.hostsProxyHeaders="X-CSRFToken"
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.services.trustAncorService.loadbalancer.server.port=8000
+    volumes:
+      - ./examples-docker/federation_authority:/django-project
+    networks:
+      - oidcfed
+      - traefik
+    command: |
+        bash -c "cd /django-project/ &&
+        python3 manage.py migrate &&
+        python3 manage.py loaddata dumps/example.json &&
+        python3 manage.py runserver 0.0.0.0:8000"
+
+  cie-provider:
+    image: ddgu/spid-cie-oidc-django:latest
+    # build:
+      # context: .
+      # dockerfile: ./Dockerfile
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.cieProvider-http.rule=Host("cie-provider.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.cieProvider-http.entrypoints=http
+        - traefik.http.routers.cieProvider-http.middlewares=https-redirect
+        - traefik.http.routers.cieProvider-https.rule=Host("cie-provider.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.cieProvider-https.entrypoints=https
+        - traefik.http.routers.cieProvider-https.tls=true
+        - traefik.http.routers.cieProvider-https.tls.certresolver=le
+        - traefik.http.routers.cieProvider-https.middlewares=csrf
+        - traefik.http.middlewares.csrf.headers.hostsProxyHeaders="X-CSRFToken"
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.services.cieProviderService.loadbalancer.server.port=8002
+    volumes:
+      - ./examples-docker/provider:/django-project
+    networks:
+      - oidcfed
+      - traefik
+    depends_on:
+      - trust-anchor
+    command: |
+        bash -c "cd /django-project/ &&
+        python3 manage.py migrate &&
+        python3 manage.py loaddata dumps/example.json &&
+        python3 manage.py runserver 0.0.0.0:8002"
+
+  relying-party:
+    image: ddgu/spid-cie-oidc-django:latest
+    # build:
+      # context: .
+      # dockerfile: ./Dockerfile
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.relyingParty-http.rule=Host("relying-party.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.relyingParty-http.entrypoints=http
+        - traefik.http.routers.relyingParty-http.middlewares=https-redirect
+        - traefik.http.routers.relyingParty-https.rule=Host("relying-party.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.relyingParty-https.entrypoints=https
+        - traefik.http.routers.relyingParty-https.tls=true
+        - traefik.http.routers.relyingParty-https.tls.certresolver=le
+        - traefik.http.routers.relyingParty-https.middlewares=csrf
+        - traefik.http.middlewares.csrf.headers.hostsProxyHeaders="X-CSRFToken"
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.services.relyingPartyService.loadbalancer.server.port=8001
+    volumes:
+      - ./examples-docker/relying_party:/django-project
+    networks:
+      - oidcfed
+      - traefik
+    depends_on:
+      - trust-anchor
+    command: |
+        bash -c "cd /django-project/ &&
+        python3 manage.py migrate &&
+        python3 manage.py loaddata dumps/example.json &&
+        python3 manage.py runserver 0.0.0.0:8001"
+
+  relying-party-php:
+    image: ddgu/spid-cie-oidc-php:latest
+    volumes:
+      - ./examples-docker/relying_party_php/config:/var/www/spid-cie-oidc-php/config
+      - ./examples-docker/relying_party_php/www:/var/www/spid-cie-oidc-php/www
+      - ./examples-docker/relying_party_php/cert:/var/www/spid-cie-oidc-php/cert
+    networks:
+      - oidcfed
+      - traefik
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.relyingPartyPhp-http.rule=Host("relying-party-php.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.relyingPartyPhp-http.entrypoints=http
+        - traefik.http.routers.relyingPartyPhp-http.middlewares=https-redirect
+        - traefik.http.routers.relyingPartyPhp-https.rule=Host("relying-party-php.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.relyingPartyPhp-https.entrypoints=https
+        - traefik.http.routers.relyingPartyPhp-https.tls=true
+        - traefik.http.routers.relyingPartyPhp-https.tls.certresolver=le
+        - traefik.http.routers.relyingPartyPhp-https.middlewares=csrf
+        - traefik.http.middlewares.csrf.headers.hostsProxyHeaders="X-CSRFToken"
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.services.relyingPartyPhpService.loadbalancer.server.port=80
+    depends_on:
+      - trust-anchor
+
+  gorp:
+    image: myoidc/oidcfed-gorp
+    volumes:
+      - ./examples-docker/go-oidcfed/gorp/config.yaml:/config.yaml
+      - ./examples-docker/go-oidcfed/gorp/keys:/keys
+    networks:
+      - oidcfed
+      - traefik
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.gorp-http.rule=Host("gorp.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.gorp-http.entrypoints=http
+        - traefik.http.routers.gorp-http.middlewares=https-redirect
+        - traefik.http.routers.gorp-https.rule=Host("gorp.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.gorp-https.entrypoints=https
+        - traefik.http.routers.gorp-https.tls=true
+        - traefik.http.routers.gorp-https.tls.certresolver=le
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.services.gorp.loadbalancer.server.port=3333
+    ports:
+      - 3333:3333  
+
+  goia:
+    image: myoidc/oidcfed-gota
+    volumes:
+      - ./examples-docker/go-oidcfed/goia:/data
+    networks:
+      - oidcfed
+      - traefik
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.goia-http.rule=Host("go-ia.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.goia-http.entrypoints=http
+        - traefik.http.routers.goia-http.middlewares=https-redirect
+        - traefik.http.routers.goia-https.rule=Host("go-ia.testbed.oidcfed.incubator.geant.org")
+        - traefik.http.routers.goia-https.entrypoints=https
+        - traefik.http.routers.goia-https.tls=true
+        - traefik.http.routers.goia-https.tls.certresolver=le
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.services.goia.loadbalancer.server.port=8765
+    ports:
+      - 8765:8765
+
+networks:
+  oidcfed:
+    external: true
+  traefik:
+    external: true
+
