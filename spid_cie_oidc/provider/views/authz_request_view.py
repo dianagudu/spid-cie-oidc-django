@@ -81,7 +81,7 @@ class AuthzRequestView(OpBase, View):
             )
         redirect_uri = payload.get("redirect_uri", "")
         p = urllib.parse.urlparse(redirect_uri)
-        scheme_fqdn = f"{p.scheme}://{p.hostname}"
+        scheme_fqdn = f"{p.scheme}://{p.netloc}"
         if payload.get("client_id", None) not in scheme_fqdn:
             raise ValidationException("client_id not in redirect_uri")
 

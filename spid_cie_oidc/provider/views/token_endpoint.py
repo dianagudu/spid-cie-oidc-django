@@ -83,6 +83,9 @@ class TokenEndpoint(OpBase, View):
 
         jwk_at = unpad_jwt_payload(issued_token.access_token)
         expires_in = self.get_expires_in(jwk_at['iat'], jwk_at['exp'])
+        scope = self.authz.authz_request["scope"]
+        if not isinstance(scope, str):
+            scope = " ".join(scope)
 
         iss_token_data = dict( # nosec B106
             access_token = issued_token.access_token,
@@ -90,7 +93,7 @@ class TokenEndpoint(OpBase, View):
             token_type = "Bearer", # nosec B106
             expires_in = expires_in,
             # TODO: remove unsupported scope
-            scope = self.authz.authz_request["scope"],
+            scope = scope,
         )
         if issued_token.refresh_token:
             iss_token_data['refresh_token'] = issued_token.refresh_token
@@ -149,6 +152,9 @@ class TokenEndpoint(OpBase, View):
 
         jwk_at = unpad_jwt_payload(iss_token_data['access_token'])
         expires_in = self.get_expires_in(jwk_at['iat'], jwk_at['exp'])
+        scope = self.authz.authz_request["scope"]
+        if not isinstance(scope, str):
+            scope = " ".join(scope)
 
         data = dict( # nosec B106
             access_token = iss_token_data['access_token'],
@@ -156,7 +162,7 @@ class TokenEndpoint(OpBase, View):
             token_type = "Bearer", # nosec B106
             expires_in = expires_in,
             # TODO: remove unsupported scope
-            scope = self.authz.authz_request["scope"],
+            scope = scope,
         )
         if issued_token.refresh_token:
             data['refresh_token'] = issued_token.refresh_token
